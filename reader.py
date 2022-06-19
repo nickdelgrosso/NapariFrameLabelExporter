@@ -28,7 +28,7 @@ class VideoReader:
         if not success:
             raise IOError("No Frame")
         frame = frame[..., ::-1]
-        frame = img_as_ubyte(frame)
+        # frame = img_as_ubyte(frame)
         assert isinstance(frame, np.ndarray), f"Frame should be an array, instead is {type(frame)}"
         return frame
 
@@ -38,4 +38,12 @@ class VideoReader:
             self.seek_to(idx)
             frame = self.read_frame()
             yield frame
+
+    def read_average_frame(self, nframes_to_use: int = 10) -> np.ndarray:
+        """Returns a roughly-estimated average frame from the data, using a subsample of evenly-spaced frames."""
+        step_size = int(len(self) / nframes_to_use)
+        frames = np.array(list(self.read_frames(step=step_size))).astype(int)
+        average_frame = np.mean(frames, axis=0).astype(np.uint8)
+        return average_frame
+        
     
