@@ -5,7 +5,6 @@ from magicgui import magicgui
 from magicgui.tqdm import trange, tqdm
 from magicgui.widgets._bases.value_widget import UNSET
 import numpy as np
-from sklearn.cluster import MiniBatchKMeans
 from kmeans import select_subset_frames_kmeans
 
 from reader import VideoReader
