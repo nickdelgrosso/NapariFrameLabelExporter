@@ -63,26 +63,16 @@ model = AppState()
 ### Load Reference Frame
 @magicgui(
     video_path={"label": "Pick a Video File:"},
-    call_button="Extract an Average Frame",
-)
-def reference_frame_extraction_widget(
-    video_path: Path = Path(r"C:\Users\nickdg\Projects\WaspTracker\data\raw\jwasp0.avi"),
-):
-    model.video_path = str(video_path)
-
-
-
-@magicgui(
     x0={'label': 'x0', 'widget_type': 'Slider'},
     x1={'label': 'x1', 'widget_type': 'Slider'},
     y0={'label': 'y0', 'widget_type': 'Slider'},
     y1={'label': 'y1', 'widget_type': 'Slider'},
-    auto_call=True
+    auto_call=True,
 )
-def crop_frame_widget(x0=0, x1=1, y0=0, y1=1):
+def reference_frame_extraction_widget(video_path: Path = None, x0=0, x1=1, y0=0, y1=1):
+    model.video_path = str(video_path)
     model.crop = Crop(x0=x0, x1=x1, y0=y0, y1=y1)
-        
-        
+
 
 # Update View from Model
 @model.observe
@@ -90,22 +80,22 @@ def view_reference_frame(changed):
     viewer = napari.current_viewer()
     if changed['name'] == 'reference_frame':
         viewer.add_image(model.reference_frame, name="Reference Frame")
-        crop_frame_widget.x0.max = model.crop.x1_max - 1
-        crop_frame_widget.x1.max = model.crop.x1_max
-        crop_frame_widget.y0.max = model.crop.y1_max - 1
-        crop_frame_widget.y1.max = model.crop.y1_max
+        reference_frame_extraction_widget.x0.max = model.crop.x1_max - 1
+        reference_frame_extraction_widget.x1.max = model.crop.x1_max
+        reference_frame_extraction_widget.y0.max = model.crop.y1_max - 1
+        reference_frame_extraction_widget.y1.max = model.crop.y1_max
         crop = model.crop
-        crop_frame_widget.x0.value = crop.x0
-        crop_frame_widget.x1.value = crop.x1
-        crop_frame_widget.y0.value = crop.y0
-        crop_frame_widget.y1.value = crop.y1
+        reference_frame_extraction_widget.x0.value = crop.x0
+        reference_frame_extraction_widget.x1.value = crop.x1
+        reference_frame_extraction_widget.y0.value = crop.y0
+        reference_frame_extraction_widget.y1.value = crop.y1
     elif changed['name'] == 'crop' and 'Reference Frame' in viewer.layers:
         layer = viewer.layers['Reference Frame']
         crop = model.crop
-        crop_frame_widget.x0.value = crop.x0
-        crop_frame_widget.x1.value = crop.x1
-        crop_frame_widget.y0.value = crop.y0
-        crop_frame_widget.y1.value = crop.y1
+        reference_frame_extraction_widget.x0.value = crop.x0
+        reference_frame_extraction_widget.x1.value = crop.x1
+        reference_frame_extraction_widget.y0.value = crop.y0
+        reference_frame_extraction_widget.y1.value = crop.y1
         layer.data = model.reference_frame[crop.y0:crop.y1, crop.x0:crop.x1]
 
 
@@ -117,8 +107,8 @@ def view_reference_frame(changed):
 )
 def multiframe_extraction_widget(
     video_path: Path = Path(r"C:\Users\nickdg\Projects\WaspTracker\data\raw\jwasp0.avi"),
-    every_n: int = 100,
-    n_clusters: int = 50,
+    every_n: int = 200,
+    n_clusters: int = 10,
     # progress=5,
 ):
 
@@ -143,6 +133,5 @@ def multiframe_extraction_widget(
 if __name__ == '__main__':
     viewer = napari.Viewer()
     viewer.window.add_dock_widget(reference_frame_extraction_widget, name="Reference Frame Extraction")
-    viewer.window.add_dock_widget(crop_frame_widget, name="Crop Frame")
     viewer.window.add_dock_widget(multiframe_extraction_widget, name="K-Means Frame Extraction for Labeling")
     napari.run()
