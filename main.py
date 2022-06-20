@@ -6,6 +6,7 @@ from magicgui import magicgui
 from magicgui.tqdm import trange, _tqdm_kwargs
 from traitlets import HasTraits, observe, Instance, Tuple, List, Unicode, Dict, Int
 import traitlets
+import cv2
 
 from kmeans import select_subset_frames_kmeans
 from reader import VideoReader
@@ -67,7 +68,11 @@ class AppState(HasTraits):
         frames = frames[:, crop.y0:crop.y1, crop.x0:crop.x1]
 
         # Extract only a Selection of Frames after clustering them using KMeans
-        selected_frame_indices = select_subset_frames_kmeans(frames=frames[:, :, :, 0], n_clusters=n_clusters)
+        
+        l, h, w, c = frames.shape
+        frames_to_cluster = np.array([cv2.resize(frame, (w//3, h//3), fx=0, fy=0, interpolation=cv2.INTER_AREA) for frame in frames])
+        frames_to_cluster = frames_to_cluster[:, :, :, 0]
+        selected_frame_indices = select_subset_frames_kmeans(frames=frames_to_cluster, n_clusters=n_clusters)
         selected_frames = frames[selected_frame_indices]
         self.selected_frames = selected_frames
 
