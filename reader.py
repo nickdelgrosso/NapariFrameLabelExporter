@@ -5,13 +5,18 @@ from typing import Iterator, Optional
 
 import cv2
 import numpy as np
+from os import path
 from skimage.util import img_as_ubyte
 
 
 class VideoReader:
 
     def __init__(self, filename: Path) -> None:
-        self.cap = cv2.VideoCapture(str(filename))
+        cap = cv2.VideoCapture(str(filename))
+        if not cap.isOpened():
+            raise IOError(f"Video File '{path.basename(filename)}' isn't opening with OpenCV. Not sure why; is it a video file?")
+        
+        self.cap = cap
     
     @property
     def n_frames(self) -> int:
