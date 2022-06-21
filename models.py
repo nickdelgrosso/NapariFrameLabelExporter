@@ -66,7 +66,11 @@ class AppState(HasTraits, PrintableTraits):
         self.video_path = str(filename)
         self.reference_frame = average_frame
         shape = average_frame.shape
-        self.crop = Crop(x0=0, x1=shape[1], x_max=shape[1], y0=0, y1=shape[0], y_max=shape[0])
+        print('should be ', dict(x0=0, x1=shape[1], x_max=shape[1], y0=0, y1=shape[0], y_max=shape[0]))
+        crop = Crop(x0=0, x1=shape[1], x_max=shape[1], y0=0, y1=shape[0], y_max=shape[0])
+        print('before attaching it is', crop)
+        self.crop = crop
+        print('set crop to ', self.crop)
 
     def set_crop(self, x0: int, x1: int, y0: int, y1: int):
         self.crop.x0 = x0

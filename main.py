@@ -21,7 +21,7 @@ from models import AppState
 ### Update Model from Widget
 @magicgui(video_path={"label": "Pick a Video File:"}, auto_call=True)
 def load_video_widget(video_path: Path = None):
-        app.load_video(filename=video_path)
+    app.load_video(filename=video_path)
 
 
 @magicgui(
@@ -32,7 +32,7 @@ def load_video_widget(video_path: Path = None):
     auto_call=True,
 )
 def reference_frame_extraction_widget(x0=0, x1=1, y0=0, y1=1):
-        app.set_crop(x0=x0, x1=x1, y0=y0, y1=y1)
+    app.set_crop(x0=x0, x1=x1, y0=y0, y1=y1)
 
 
 
@@ -54,35 +54,34 @@ def multiframe_extraction_widget(
 app = AppState()
 
 
-
-
-@app.observe
+@partial(app.observe, names='reference_frame')
 def view_reference_frame(changed):
-    if changed['name'] == 'reference_frame':
-        viewer = napari.current_viewer()
-        viewer.add_image(app.reference_frame, name="Reference Frame")
+    frame = changed['new']
+    viewer = napari.current_viewer()
+    viewer.add_image(frame, name="Reference Frame")
     
 
 
+@partial(app.observe, names='crop')
 def view_cropped_frame(changed):
-        if 'Reference Frame' in viewer. layers:
-                layer = viewer.layers['Reference Frame']
-                crop = changed['new']
-                layer.data = app.reference_frame[crop.y0:crop.y1, crop.x0:crop.x1]
-        app.observe(view_cropped_frame, names=['crop'])
+    if 'Reference Frame' in viewer.layers:
+        layer = viewer.layers['Reference Frame']
+        crop = changed['new']
+        layer.data = app.reference_frame[crop.y0:crop.y1, crop.x0:crop.x1]
+        
 
 @partial(app.observe, names=['crop'])
-def view_reference_frame2(changed):
-    # if changed['name'] == 'crop':
-                crop = changed['new']
-        reference_frame_extraction_widget.x0.max = crop.x_max - 2
-        reference_frame_extraction_widget.x1.max = crop.x_max
-        reference_frame_extraction_widget.y0.max = crop.y_max - 2
-        reference_frame_extraction_widget.y1.max = crop.y_max
-        reference_frame_extraction_widget.x0.value = crop.x0
-        reference_frame_extraction_widget.x1.value = crop.x1
-        reference_frame_extraction_widget.y0.value = crop.y0
-        reference_frame_extraction_widget.y1.value = crop.y1
+def view_reference_frame2(changed):        
+    crop = changed['new']
+    reference_frame_extraction_widget.x0.max = crop.x_max
+    reference_frame_extraction_widget.x1.max = crop.x_max
+    reference_frame_extraction_widget.y0.max = crop.y_max
+    reference_frame_extraction_widget.y1.max = crop.y_max
+    reference_frame_extraction_widget.x0.value = crop.x0
+    reference_frame_extraction_widget.y1.value = crop.y1
+    reference_frame_extraction_widget.x1.value = crop.x1
+    reference_frame_extraction_widget.y0.value = crop.y0
+    
     
 
 @partial(app.observe, names='selected_frames')
