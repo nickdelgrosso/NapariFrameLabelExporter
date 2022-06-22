@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 from traitlets import HasTraits, observe, validate, Instance, Tuple, List, Unicode, Dict, Int, All, TraitError
 import cv2
@@ -25,6 +27,7 @@ class Crop(HasTraits, PrintableTraits):
     def _check_x0(self, proposal):
         x0 = proposal['value']
         if x0 >= self.x1:
+            print(f"shouldn't work: x0 {x0}")
             return self.x0
         return x0
 
@@ -53,7 +56,8 @@ class Crop(HasTraits, PrintableTraits):
 class AppState(HasTraits, PrintableTraits):
     video_path = Unicode(allow_none=True)
     reference_frame = Instance(np.ndarray, allow_none=True)
-    crop = Instance(Crop, allow_none=True)
+    reference_frame_cropped = Instance(np.ndarray, allow_none=True)
+    crop = Crop()
     selected_frames = Instance(np.ndarray, allow_none=True)
     body_parts = List(Unicode(), default_value=['head'])
     current_body_part = Unicode(allow_none=True, default_value='head')
@@ -66,19 +70,19 @@ class AppState(HasTraits, PrintableTraits):
         self.video_path = str(filename)
         self.reference_frame = average_frame
         shape = average_frame.shape
-        print('should be ', dict(x0=0, x1=shape[1], x_max=shape[1], y0=0, y1=shape[0], y_max=shape[0]))
-        crop = Crop(x0=0, x1=shape[1], x_max=shape[1], y0=0, y1=shape[0], y_max=shape[0])
-        print('before attaching it is', crop)
-        self.crop = crop
-        print('set crop to ', self.crop)
+        with self.crop.hold_trait_notifications():
+            self.crop.x0 = 0
+            self.crop.x1 = shape[1]
+            self.crop.x_max = shape[1]
+            self.crop.y0 = 0
+            self.crop.y1 = shape[0]
+            self.crop.y_max = shape[0]
+        
 
-    def set_crop(self, x0: int, x1: int, y0: int, y1: int):
-        self.crop.x0 = x0
-        self.crop.x1 = x1
-        self.crop.y0 = y0
-        self.crop.y1 = y1
-        self.notify_change({'type': 'change', 'name': 'crop', 'new': self.crop, 'old': None})
-
+    def get_cropped_reference_frame(self) -> Optional[np.ndarray]:
+        crop = self.crop
+        frame = self.reference_frame[crop.y0:crop.y1, crop.x0:crop.x1]
+        return frame
 
     def extract_frames_via_kmeans(self, every_n: int = 50, n_clusters: int = 15):
         # Read the Starting Frames to Analyze From the Video, cropping the frames to match the reference
