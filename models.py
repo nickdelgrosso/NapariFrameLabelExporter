@@ -1,3 +1,4 @@
+from multiprocessing import allow_connection_pickling
 from typing import Optional
 
 import numpy as np
@@ -57,6 +58,7 @@ class AppState(HasTraits, PrintableTraits):
     reference_frame = Instance(np.ndarray, allow_none=True)
     reference_frame_cropped = Instance(np.ndarray, allow_none=True)
     crop = Crop()
+    selected_frame_indices = List(traits=Int())
     selected_frames = Instance(np.ndarray, allow_none=True)
     body_parts = List(Unicode(), default_value=['head'])
     current_body_part = Unicode(allow_none=True, default_value='head')
@@ -90,16 +92,25 @@ class AppState(HasTraits, PrintableTraits):
 
         # Crop Frames to Match Reference Frame
         crop = self.crop
-        frames = frames[:, crop.y0:crop.y1, crop.x0:crop.x1]
+        frames_cropped = frames[:, crop.y0:crop.y1, crop.x0:crop.x1]
 
         # Extract only a Selection of Frames after clustering them using KMeans
         
         l, h, w, c = frames.shape
-        frames_to_cluster = np.array([cv2.resize(frame, (w//3, h//3), fx=0, fy=0, interpolation=cv2.INTER_AREA) for frame in frames])
+        frames_to_cluster = np.array([cv2.resize(frame, (w//3, h//3), fx=0, fy=0, interpolation=cv2.INTER_AREA) for frame in frames_cropped])
         frames_to_cluster = frames_to_cluster[:, :, :, 0]
         selected_frame_indices = select_subset_frames_kmeans(frames=frames_to_cluster, n_clusters=n_clusters)
-        selected_frames = frames[selected_frame_indices]
-        self.selected_frames = selected_frames
+        self.selected_frame_indices = selected_frame_indices
+        self.selected_frames = frames[selected_frame_indices]
+
+
+    def get_cropped_selected_frames(self) -> Optional[np.ndarray]:
+        frames = self.selected_frames
+        if frames is None:
+            return None
+        crop = self.crop
+        frames_cropped = frames[:, crop.y0:crop.y1, crop.x0:crop.x1]
+        return frames_cropped
 
 
     def remove_bodypart(self, body_part: str):

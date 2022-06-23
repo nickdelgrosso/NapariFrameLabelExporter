@@ -48,7 +48,7 @@ class ViewNapari:
         )
 
         # Image Viewer
-        self.layer: Optional[layers.Image] = None
+        self.layer = layers.Image(data=np.zeros(shape=(3, 3, 3), dtype=np.uint8), name='Reference Image')
         self.model.observe(self.on_model_cropped_refframe_change, ['reference_frame'])
         self.model.crop.observe(self.on_model_cropped_refframe_change)
 
@@ -56,7 +56,6 @@ class ViewNapari:
     def register_napari(self, viewer: napari.Viewer) -> None:
         self.viewer = viewer
         viewer.window.add_dock_widget(self.widget, name='')
-        self.layer = viewer.add_image(data=np.zeros(shape=(3, 3, 3), dtype=np.uint8), name='Reference Image')
 
     def show(self, run: bool = False):
         self.widget.show(run=run)
@@ -114,17 +113,20 @@ class ViewNapari:
 
     # Image Viewer    
     def on_model_cropped_refframe_change(self, change) -> None:
+        if self.layer not in self.viewer.layers and self.model.reference_frame is not None:
+            self.viewer.add_layer(self.layer)
         self.layer.data = self.model.get_cropped_reference_frame()
         self.viewer.reset_view()
 
+    
 
 class MultiFrameExtractionControlsViewNapari:
     def __init__(self, model: AppState) -> None:
         self.model = model
 
         # Controls
-        self.every_n_widget = widgets.SpinBox(min=1, max=1000, value=20)
-        self.n_clusters_widget = widgets.SpinBox(min=2, max=500, value=10)
+        self.every_n_widget = widgets.SpinBox(min=1, max=1000, value=30)
+        self.n_clusters_widget = widgets.SpinBox(min=2, max=500, value=20)
         self.run_button = widgets.PushButton(text="Extract Frames")
         self.run_button.clicked.connect(self.on_run_button_click)
 
@@ -139,12 +141,13 @@ class MultiFrameExtractionControlsViewNapari:
         )
 
         # Image Viewer
-        self.layer: Optional[layers.Image] = None
+        self.layer = layers.Image(data=np.zeros(shape=(1, 3, 3, 3), dtype=np.uint8), name='Extracted Frames')
         self.model.observe(self.on_model_selected_frames_change, ['selected_frames'])
+        self.model.crop.observe(self.on_model_crop_change)
     
     def register_napari(self, viewer: napari.Viewer) -> None:
+        self.viewer = viewer
         viewer.window.add_dock_widget(self.widget, name='')
-        self.layer = viewer.add_image(data=np.zeros(shape=(1, 3, 3, 3), dtype=np.uint8), name='Extracted Frames')
 
     # Run Button
     def on_run_button_click(self) -> None:
@@ -155,7 +158,14 @@ class MultiFrameExtractionControlsViewNapari:
     
     # Image Viewer
     def on_model_selected_frames_change(self, change) -> None:
-        self.layer.data = self.model.selected_frames
+        if self.layer not in self.viewer.layers:
+            self.viewer.add_layer(self.layer)
+        self.layer.data = self.model.get_cropped_selected_frames()
+
+    def on_model_crop_change(self, change) -> None:
+        frames = self.model.get_cropped_selected_frames()
+        if frames is not None:
+            self.layer.data = frames
 
 
         
@@ -205,8 +215,22 @@ class LabelingViewNapari:
             labels=False,
         )
 
+        # Labels Points Viewer
+        self.point_layer = layers.Points(ndim=3, symbol='o', size=12, name='Body Part Labels', opacity=0.6)
+        self.model.observe(self.on_model_selected_frames_change, 'selected_frames')
+        self.point_layer.events.data.connect(self.on_pointlayer_data_event)
+        # Interesting event types so far: 'highlight', 'mode', 'data'.
+
+        # Potential event types:
+        # ['refresh', 'set_data', 'blending', 'opacity', 'visible', 'scale', 'translate', 'rotate', 'shear', 'affine', 'data', 'name', 'thumbnail', 'status', 'help', 'interactive', 
+        # 'cursor', 'cursor_size', 'editable', 'loaded', '_ndisplay', 'select', 'deselect', 'mode', 'size', 'edge_width', 'edge_width_is_relative', 'face_color', 
+        # 'current_face_color', 'edge_color', 'current_edge_color', 'properties', 'current_properties', 'symbol', 'out_of_slice_display', 'n_dimensional', 'highlight', 
+        # 'shading', '_antialias', 'experimental_canvas_size_limits', 'features', 'feature_defaults'])
+
+
     def register_napari(self, viewer: napari.Viewer):
-        viewer.window.add_dock_widget(self.widget, name='Label Bodyparts')
+        self.viewer = viewer
+        viewer.window.add_dock_widget(self.widget, name='Label Body Parts')
         
 
     # Add Bodypart button
@@ -230,6 +254,19 @@ class LabelingViewNapari:
         current = self.model.current_body_part
         self.model.remove_bodypart(body_part=current)
 
+    # Points Layer View
+    def on_pointlayer_data_event(self, event):
+        print(event, str(event))
+
+
+
+    def on_model_selected_frames_change(self, change):
+        if not self.point_layer.name in self.viewer.layers:
+            self.viewer.add_layer(self.point_layer)
+            layers = self.viewer.layers
+            layers.move(layers.index(self.point_layer), -1)  # move the points layer to the end
+
+    
 
 
 app = AppState()
