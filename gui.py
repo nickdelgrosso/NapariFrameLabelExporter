@@ -3,7 +3,7 @@ from magicgui import magicgui, type_map
 from magicgui.widgets import Container
 
 def get_a(data):
-    print(type(data), data)
+    
     return random() + 1000
 
 type_map.register_type(int, widget_type='Slider', max=10)

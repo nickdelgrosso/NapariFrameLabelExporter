@@ -27,7 +27,6 @@ class Crop(HasTraits, PrintableTraits):
     def _check_x0(self, proposal):
         x0 = proposal['value']
         if x0 >= self.x1:
-            print(f"shouldn't work: x0 {x0}")
             return self.x0
         return x0
 

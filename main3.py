@@ -1,7 +1,4 @@
-from functools import partial
-from operator import mod
-from pathlib import Path
-from graphviz import view
+from typing import Optional
 
 import numpy as np
 import napari
@@ -59,6 +56,12 @@ class ViewNapari:
         self._crop_y1.visible = True
 
 
+    ###### Callbacks #######
+    # Note: each widget has a pair of callbacks: 
+    #   - one that updates the model from the widget (e.g. slider moving), 
+    #   - and one that updates the widget when the model changes (e.g. model validation, image loading, etc)
+    #  Though it is more code, By handling each direction independently, it's simpler to control how the app should behave and reduces debugging tmie 
+    
     # x0
     def on_crop_x0_change(self):
         self.model.crop.x0 = self._crop_x0.value  # update model from view
@@ -98,18 +101,38 @@ class ViewNapari:
 
         
 
+class ReferenceFrameViewNapari:
+
+    def __init__(self, model: AppState) -> None:
+        self.model = model
+        from napari import layers
+        self.layer: Optional[layers.Image] = None
+        self.model.observe(self.on_cropped_refframe_change, ['reference_frame'])
+        self.model.crop.observe(self.on_cropped_refframe_change)
+
+    def register_napari(self, viewer: napari.Viewer) -> None:
+        self.viewer = viewer
+        self.layer = viewer.add_image(data=np.zeros(shape=(3, 3, 3), dtype=np.uint8), name='Reference Image')
+        
+
+    def on_cropped_refframe_change(self, change) -> None:
+        self.layer.data = self.model.get_cropped_reference_frame()
+        self.viewer.reset_view()
 
 
 
 
 
 app = AppState()
-view = ViewNapari(model=app)
-view.show(run=True)
+viewer = napari.Viewer()
 
-# viewer = napari.Viewer()
-# view.register_napari(viewer=viewer)
-# napari.run()
+loader_view = ViewNapari(model=app)
+loader_view.register_napari(viewer=viewer)
+
+ref_view = ReferenceFrameViewNapari(model=app)
+ref_view.register_napari(viewer=viewer)
+
+napari.run()
 
 
 
@@ -144,7 +167,7 @@ view.show(run=True)
 #         self.layer = viewer.add_image(data=np.zeros((3,3, 3), dtype=np.uint8), name='Reference Frame')
 
 #     def __call__(self, change):
-#         print('calling')
+#         
 #         if app.reference_frame is not None:
 #             self.layer.data = app.get_cropped_reference_frame()
 

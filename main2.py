@@ -49,7 +49,7 @@ class ReferenceImageViewNapari:
         self.layer = viewer.add_image(data=np.zeros((3,3, 3), dtype=np.uint8), name='Reference Frame')
 
     def __call__(self, change):
-        print('calling')
+        
         if app.reference_frame is not None:
             self.layer.data = app.get_cropped_reference_frame()
 
