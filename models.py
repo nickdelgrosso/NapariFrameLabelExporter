@@ -101,3 +101,7 @@ class AppState(HasTraits, PrintableTraits):
         selected_frames = frames[selected_frame_indices]
         self.selected_frames = selected_frames
 
+
+    def remove_bodypart(self, body_part: str):
+        if body_part in self.body_parts:
+            self.body_parts = [part for part in self.body_parts if part != body_part]

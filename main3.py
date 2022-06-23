@@ -1,11 +1,13 @@
+from cProfile import label
 from math import inf
 from typing import Optional
 
-import numpy as np
 import napari
-from napari import layers
+import numpy as np
 from magicgui import magicgui, type_map, widgets
 from magicgui.widgets._bases.widget import Widget as BaseWidget
+from napari import layers
+
 from models import AppState
 
 
@@ -157,7 +159,77 @@ class MultiFrameExtractionControlsViewNapari:
 
 
         
-    
+class LabelingViewNapari:
+
+    def __init__(self, model: AppState) -> None:
+        self.model = model
+
+        # Add-bodypart widget (text box + submit button)
+        self.add_bodypart_text_widget = widgets.LineEdit()
+        self.add_bodypart_button = widgets.PushButton(text='Add')
+        self.add_bodypart_button.clicked.connect(self.on_add_bodypart_button_clicked)
+
+        self.add_bodypart_widget = widgets.Container(
+            layout='horizontal',
+            widgets=[
+                self.add_bodypart_text_widget,
+                self.add_bodypart_button,
+            ],
+            labels=False,
+        )
+
+        # Select-Current-Bodypart widget
+        self.current_bodypart_widget = widgets.ComboBox(choices=(), allow_multiple=False)
+        self.current_bodypart_widget.changed.connect(self.on_current_bodypart_widget_selection_change)
+        self.model.observe(self.on_model_bodyparts_change)
+
+        self.delete_current_bodypart_button = widgets.PushButton(text="Delete")
+        self.delete_current_bodypart_button.clicked.connect(self.on_delete_current_bodypart_button_click)
+
+        self.bodypart_selection_deletion_widget = widgets.Container(
+            layout='horizontal',
+            widgets=[
+                self.current_bodypart_widget,
+                self.delete_current_bodypart_button,
+            ],
+            labels=False
+        )
+
+        # All widgets together
+        self.widget = widgets.Container(
+            layout='vertical',
+            widgets=[
+                self.add_bodypart_widget,
+                self.bodypart_selection_deletion_widget,
+            ],
+            labels=False,
+        )
+
+    def register_napari(self, viewer: napari.Viewer):
+        viewer.window.add_dock_widget(self.widget, name='Label Bodyparts')
+        
+
+    # Add Bodypart button
+    def on_add_bodypart_button_clicked(self):
+        text = self.add_bodypart_text_widget.value
+        if text:
+            body_parts = [s.strip() for s in text.split(';')]
+            self.model.body_parts = body_parts
+            self.add_bodypart_text_widget.value = ''  # clear textfield
+
+    # Select Current Bodypart Dropdown box
+    def on_current_bodypart_widget_selection_change(self, value: str):
+        self.model.current_body_part = value
+        self.current_bodypart_widget.value = self.model.current_body_part
+
+    def on_model_bodyparts_change(self, change):
+        self.current_bodypart_widget.choices = self.model.body_parts
+        
+    # Delete Current Bodypart button
+    def on_delete_current_bodypart_button_click(self):
+        current = self.model.current_body_part
+        self.model.remove_bodypart(body_part=current)
+
 
 
 app = AppState()
@@ -168,6 +240,9 @@ loader_view.register_napari(viewer=viewer)
 
 extract_view = MultiFrameExtractionControlsViewNapari(model=app)
 extract_view.register_napari(viewer=viewer)
+
+labeler_view = LabelingViewNapari(model=app)
+labeler_view.register_napari(viewer=viewer)
 
 napari.run()
 
