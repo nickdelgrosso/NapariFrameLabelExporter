@@ -13,7 +13,8 @@ class ViewNapari:
 
     def __init__(self, model: AppState) -> None:
         self.model = model
-        
+
+        # Controls
         self._videp_picker = widgets.FileEdit(label='Select Video:')
         self._videp_picker.changed.connect(self.on_videopath_change)
 
@@ -44,8 +45,16 @@ class ViewNapari:
             labels=False,
         )
 
+        # Image Viewer
+        self.layer: Optional[layers.Image] = None
+        self.model.observe(self.on_model_cropped_refframe_change, ['reference_frame'])
+        self.model.crop.observe(self.on_model_cropped_refframe_change)
+
+
     def register_napari(self, viewer: napari.Viewer) -> None:
+        self.viewer = viewer
         viewer.window.add_dock_widget(self.widget, name='')
+        self.layer = viewer.add_image(data=np.zeros(shape=(3, 3, 3), dtype=np.uint8), name='Reference Image')
 
     def show(self, run: bool = False):
         self.widget.show(run=run)
@@ -101,22 +110,8 @@ class ViewNapari:
         self._crop_y1.max = self.model.crop.y_max
         self._crop_y1.value = self.model.crop.y1
 
-        
-
-class ReferenceFrameViewNapari:
-
-    def __init__(self, model: AppState) -> None:
-        self.model = model
-        self.layer: Optional[layers.Image] = None
-        self.model.observe(self.on_cropped_refframe_change, ['reference_frame'])
-        self.model.crop.observe(self.on_cropped_refframe_change)
-
-    def register_napari(self, viewer: napari.Viewer) -> None:
-        self.viewer = viewer
-        self.layer = viewer.add_image(data=np.zeros(shape=(3, 3, 3), dtype=np.uint8), name='Reference Image')
-        
-
-    def on_cropped_refframe_change(self, change) -> None:
+    # Image Viewer    
+    def on_model_cropped_refframe_change(self, change) -> None:
         self.layer.data = self.model.get_cropped_reference_frame()
         self.viewer.reset_view()
 
@@ -124,6 +119,8 @@ class ReferenceFrameViewNapari:
 class MultiFrameExtractionControlsViewNapari:
     def __init__(self, model: AppState) -> None:
         self.model = model
+
+        # Controls
         self.every_n_widget = widgets.SpinBox(min=1, max=1000, value=20)
         self.n_clusters_widget = widgets.SpinBox(min=2, max=500, value=10)
         self.run_button = widgets.PushButton(text="Extract Frames")
@@ -138,29 +135,26 @@ class MultiFrameExtractionControlsViewNapari:
             ],
             labels=False,
         )
+
+        # Image Viewer
+        self.layer: Optional[layers.Image] = None
+        self.model.observe(self.on_model_selected_frames_change, ['selected_frames'])
     
     def register_napari(self, viewer: napari.Viewer) -> None:
         viewer.window.add_dock_widget(self.widget, name='')
+        self.layer = viewer.add_image(data=np.zeros(shape=(1, 3, 3, 3), dtype=np.uint8), name='Extracted Frames')
 
+    # Run Button
     def on_run_button_click(self) -> None:
         self.model.extract_frames_via_kmeans(
             every_n=self.every_n_widget.value,
             n_clusters=self.n_clusters_widget.value,
         )
-
-
-class MultiFrameViewNapari:
-    def __init__(self, model: AppState) -> None:
-        self.model = model
-
-        self.layer: Optional[layers.Image] = None
-        self.model.observe(self.on_selected_frames_change, ['selected_frames'])
-
-    def register_napari(self, viewer: napari.Viewer) -> None:
-        self.layer = viewer.add_image(data=np.zeros(shape=(1, 3, 3, 3), dtype=np.uint8), name='Extracted Frames')
-
-    def on_selected_frames_change(self, change) -> None:
+    
+    # Image Viewer
+    def on_model_selected_frames_change(self, change) -> None:
         self.layer.data = self.model.selected_frames
+
 
         
     
@@ -172,14 +166,8 @@ viewer = napari.Viewer()
 loader_view = ViewNapari(model=app)
 loader_view.register_napari(viewer=viewer)
 
-ref_view = ReferenceFrameViewNapari(model=app)
-ref_view.register_napari(viewer=viewer)
-
 extract_view = MultiFrameExtractionControlsViewNapari(model=app)
 extract_view.register_napari(viewer=viewer)
-
-extract_frames_view = MultiFrameViewNapari(model=app)
-extract_frames_view.register_napari(viewer=viewer)
 
 napari.run()
 
