@@ -1,125 +1,248 @@
-# import sys
-# from IPython.core import ultratb
-# sys.excepthook = ultratb.FormattedTB(mode='Verbose',
-#      color_scheme='Linux', call_pdb=1)
-
-from enum import auto
-from fileinput import filename
-from pathlib import Path
+from cProfile import label
+from math import inf
 from typing import Optional
-from functools import partial
-
 
 import napari
-from magicgui import magicgui
-from magicgui.widgets import Container
-from magicgui.tqdm import trange
-from magicgui.widgets import Select
+import numpy as np
+from magicgui import magicgui, type_map, widgets
+from magicgui.widgets._bases.widget import Widget as BaseWidget
+from napari import layers
 
 from models import AppState
 
-### Update Model from Widget
-@magicgui(video_path={"label": "Pick a Video File:"}, auto_call=True)
-def load_video_widget(video_path: Path = None):
-    app.load_video(filename=video_path)
+
+class ViewNapari:
+
+    def __init__(self, model: AppState) -> None:
+        self.model = model
+
+        # Controls
+        self._videp_picker = widgets.FileEdit(label='Select Video:')
+        self._videp_picker.changed.connect(self.on_videopath_change)
+
+        self._crop_x0 =  widgets.IntSlider(label='x0', max=10)
+        self._crop_x0.changed.connect(self.on_crop_x0_change)
+        self.model.crop.observe(self.on_model_crop_x0_change, 'x0')
+        self._crop_x0.visible = False
+
+        
+        self._crop_x1 =  widgets.IntSlider(label='x1', max=10)
+        self._crop_x1.changed.connect(self.on_crop_x1_change)
+        self.model.crop.observe(self.on_model_crop_x1_change, 'x1')
+        self._crop_x1.visible = False
+
+        self._crop_y0 =  widgets.IntSlider(label='y0', max=10)
+        self._crop_y0.changed.connect(self.on_crop_y0_change)
+        self.model.crop.observe(self.on_model_crop_y0_change, 'y0')
+        self._crop_y0.visible = False
+
+        self._crop_y1 =  widgets.IntSlider(label='y1', max=10)
+        self._crop_y1.changed.connect(self.on_crop_y1_change)
+        self.model.crop.observe(self.on_model_crop_y1_change, 'y1')
+        self._crop_y1.visible = False
+
+        self.widget = widgets.Container(
+            layout='vertical',
+            widgets=[self._videp_picker, self._crop_x0, self._crop_x1, self._crop_y0, self._crop_y1],
+            labels=False,
+        )
+
+        # Image Viewer
+        self.layer: Optional[layers.Image] = None
+        self.model.observe(self.on_model_cropped_refframe_change, ['reference_frame'])
+        self.model.crop.observe(self.on_model_cropped_refframe_change)
 
 
-@magicgui(
-    x0={'label': 'x0', 'widget_type': 'Slider'},
-    x1={'label': 'x1', 'widget_type': 'Slider'},
-    y0={'label': 'y0', 'widget_type': 'Slider'},
-    y1={'label': 'y1', 'widget_type': 'Slider'},
-    auto_call=True,
-)
-def reference_frame_extraction_widget(x0=0, x1=1, y0=0, y1=1):
-    app.set_crop(x0=x0, x1=x1, y0=y0, y1=y1)
+    def register_napari(self, viewer: napari.Viewer) -> None:
+        self.viewer = viewer
+        viewer.window.add_dock_widget(self.widget, name='')
+        self.layer = viewer.add_image(data=np.zeros(shape=(3, 3, 3), dtype=np.uint8), name='Reference Image')
+
+    def show(self, run: bool = False):
+        self.widget.show(run=run)
+
+    def on_videopath_change(self):
+        self.model.load_video(filename=self._videp_picker.value)
+        self._crop_x0.visible = True
+        self._crop_x1.visible = True
+        self._crop_y0.visible = True
+        self._crop_y1.visible = True
 
 
-
-@magicgui(
-    every_n={"label": "Read Every N Frames"},
-    n_clusters={"label": "N Clusters"},
-    call_button="Extract Frames", 
-)
-def multiframe_extraction_widget(
-    every_n: int = 200,
-    n_clusters: int = 10,
-    # progress=5,
-):
-    app.extract_frames_via_kmeans(every_n=every_n, n_clusters=n_clusters)
-            
-
+    ###### Callbacks #######
+    # Note: each widget has a pair of callbacks: 
+    #   - one that updates the model from the widget (e.g. slider moving), 
+    #   - and one that updates the widget when the model changes (e.g. model validation, image loading, etc)
+    #  Though it is more code, By handling each direction independently, it's simpler to control how the app should behave and reduces debugging tmie 
     
-# Update Widget from Model
-app = AppState()
+    # x0
+    def on_crop_x0_change(self):
+        self.model.crop.x0 = self._crop_x0.value  # update model from view
+        self._crop_x0.value = self.model.crop.x0  # update view again after model does validation (e.g. slider is not allowed to be there.)
+
+    def on_model_crop_x0_change(self, change):
+        self._crop_x0.max = self.model.crop.x_max
+        self._crop_x0.value = change['new']
+        
+    # x1
+    def on_crop_x1_change(self):
+        self.model.crop.x1 = self._crop_x1.value
+        self._crop_x1.value = self.model.crop.x1
 
 
-@partial(app.observe, names='reference_frame')
-def view_reference_frame(changed):
-    frame = changed['new']
-    viewer = napari.current_viewer()
-    viewer.add_image(frame, name="Reference Frame")
+    def on_model_crop_x1_change(self, change):
+        self._crop_x1.max = self.model.crop.x_max
+        self._crop_x1.value = change['new']
+
+    # y0
+    def on_crop_y0_change(self):
+        self.model.crop.y0 = self._crop_y0.value
+        self._crop_y0.value = self.model.crop.y0
+
+    def on_model_crop_y0_change(self, change):
+        self._crop_y0.max = self.model.crop.y_max
+        self._crop_y0.value = self.model.crop.y0
+
+    # y1
+    def on_crop_y1_change(self):
+        self.model.crop.y1 = self._crop_y1.value
+        self._crop_y1.value = self.model.crop.y1
+
+    def on_model_crop_y1_change(self, change):
+        self._crop_y1.max = self.model.crop.y_max
+        self._crop_y1.value = self.model.crop.y1
+
+    # Image Viewer    
+    def on_model_cropped_refframe_change(self, change) -> None:
+        self.layer.data = self.model.get_cropped_reference_frame()
+        self.viewer.reset_view()
+
+
+class MultiFrameExtractionControlsViewNapari:
+    def __init__(self, model: AppState) -> None:
+        self.model = model
+
+        # Controls
+        self.every_n_widget = widgets.SpinBox(min=1, max=1000, value=20)
+        self.n_clusters_widget = widgets.SpinBox(min=2, max=500, value=10)
+        self.run_button = widgets.PushButton(text="Extract Frames")
+        self.run_button.clicked.connect(self.on_run_button_click)
+
+        self.widget = widgets.Container(
+            layout='vertical',
+            widgets=[
+                self.every_n_widget,
+                self.n_clusters_widget,
+                self.run_button,
+            ],
+            labels=False,
+        )
+
+        # Image Viewer
+        self.layer: Optional[layers.Image] = None
+        self.model.observe(self.on_model_selected_frames_change, ['selected_frames'])
     
+    def register_napari(self, viewer: napari.Viewer) -> None:
+        viewer.window.add_dock_widget(self.widget, name='')
+        self.layer = viewer.add_image(data=np.zeros(shape=(1, 3, 3, 3), dtype=np.uint8), name='Extracted Frames')
+
+    # Run Button
+    def on_run_button_click(self) -> None:
+        self.model.extract_frames_via_kmeans(
+            every_n=self.every_n_widget.value,
+            n_clusters=self.n_clusters_widget.value,
+        )
+    
+    # Image Viewer
+    def on_model_selected_frames_change(self, change) -> None:
+        self.layer.data = self.model.selected_frames
 
 
-@partial(app.observe, names='crop')
-def view_cropped_frame(changed):
-    if 'Reference Frame' in viewer.layers:
-        layer = viewer.layers['Reference Frame']
-        crop = changed['new']
-        layer.data = app.reference_frame[crop.y0:crop.y1, crop.x0:crop.x1]
+        
+class LabelingViewNapari:
+
+    def __init__(self, model: AppState) -> None:
+        self.model = model
+
+        # Add-bodypart widget (text box + submit button)
+        self.add_bodypart_text_widget = widgets.LineEdit()
+        self.add_bodypart_button = widgets.PushButton(text='Add')
+        self.add_bodypart_button.clicked.connect(self.on_add_bodypart_button_clicked)
+
+        self.add_bodypart_widget = widgets.Container(
+            layout='horizontal',
+            widgets=[
+                self.add_bodypart_text_widget,
+                self.add_bodypart_button,
+            ],
+            labels=False,
+        )
+
+        # Select-Current-Bodypart widget
+        self.current_bodypart_widget = widgets.ComboBox(choices=(), allow_multiple=False)
+        self.current_bodypart_widget.changed.connect(self.on_current_bodypart_widget_selection_change)
+        self.model.observe(self.on_model_bodyparts_change)
+
+        self.delete_current_bodypart_button = widgets.PushButton(text="Delete")
+        self.delete_current_bodypart_button.clicked.connect(self.on_delete_current_bodypart_button_click)
+
+        self.bodypart_selection_deletion_widget = widgets.Container(
+            layout='horizontal',
+            widgets=[
+                self.current_bodypart_widget,
+                self.delete_current_bodypart_button,
+            ],
+            labels=False
+        )
+
+        # All widgets together
+        self.widget = widgets.Container(
+            layout='vertical',
+            widgets=[
+                self.add_bodypart_widget,
+                self.bodypart_selection_deletion_widget,
+            ],
+            labels=False,
+        )
+
+    def register_napari(self, viewer: napari.Viewer):
+        viewer.window.add_dock_widget(self.widget, name='Label Bodyparts')
         
 
-@partial(app.observe, names=['crop'])
-def view_reference_frame2(changed):        
-    crop = changed['new']
-    reference_frame_extraction_widget.x0.max = crop.x_max
-    reference_frame_extraction_widget.x1.max = crop.x_max
-    reference_frame_extraction_widget.y0.max = crop.y_max
-    reference_frame_extraction_widget.y1.max = crop.y_max
-    reference_frame_extraction_widget.x0.value = crop.x0
-    reference_frame_extraction_widget.y1.value = crop.y1
-    reference_frame_extraction_widget.x1.value = crop.x1
-    reference_frame_extraction_widget.y0.value = crop.y0
-    
-    
+    # Add Bodypart button
+    def on_add_bodypart_button_clicked(self):
+        text = self.add_bodypart_text_widget.value
+        if text:
+            body_parts = [s.strip() for s in text.split(';')]
+            self.model.body_parts = body_parts
+            self.add_bodypart_text_widget.value = ''  # clear textfield
 
-@partial(app.observe, names='selected_frames')
-def view_extracted_frames(changed):
-    viewer = napari.current_viewer()
-    viewer.add_image(app.selected_frames)
-    
+    # Select Current Bodypart Dropdown box
+    def on_current_bodypart_widget_selection_change(self, value: str):
+        self.model.current_body_part = value
+        self.current_bodypart_widget.value = self.model.current_body_part
 
-@partial(app.observe, names='body_parts')
-def view_updated_bodypart_list(changed):
-    add_bodypart_widget.body_part.value = ""
-    bodypart_selector_widget.body_part.choices = app.body_parts
+    def on_model_bodyparts_change(self, change):
+        self.current_bodypart_widget.choices = self.model.body_parts
+        
+    # Delete Current Bodypart button
+    def on_delete_current_bodypart_button_click(self):
+        current = self.model.current_body_part
+        self.model.remove_bodypart(body_part=current)
 
 
-@magicgui(body_part = {'widget_type': 'LineEdit'}, layout='horizontal', call_button='Add')
-def add_bodypart_widget(body_part: str = ""):
-    if body_part:
-        app.body_parts = app.body_parts + [s.strip() for s in body_part.split(';')]
-    
 
+app = AppState()
+viewer = napari.Viewer()
 
-@magicgui(body_part = {'label': "Current Body Part", 'widget_type': "ComboBox", 'choices': ('Place1', 'Place2')}, auto_call=True)
-def bodypart_selector_widget(body_part: str = "Place1"):
-    app.current_body_part = body_part
+loader_view = ViewNapari(model=app)
+loader_view.register_napari(viewer=viewer)
 
+extract_view = MultiFrameExtractionControlsViewNapari(model=app)
+extract_view.register_napari(viewer=viewer)
 
-if __name__ == '__main__':
-    viewer = napari.Viewer()
-    widget_container = Container(
-        layout='vertical', 
-        widgets=[
-            load_video_widget,
-            reference_frame_extraction_widget, 
-            multiframe_extraction_widget, 
-            add_bodypart_widget, 
-            bodypart_selector_widget
-        ],
-        labels=False,
-    )
-    viewer.window.add_dock_widget(widget_container, name='adfaf')
-    napari.run()
+labeler_view = LabelingViewNapari(model=app)
+labeler_view.register_napari(viewer=viewer)
+
+napari.run()
+
