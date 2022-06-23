@@ -1,7 +1,9 @@
+from math import inf
 from typing import Optional
 
 import numpy as np
 import napari
+from napari import layers
 from magicgui import magicgui, type_map, widgets
 from magicgui.widgets._bases.widget import Widget as BaseWidget
 from models import AppState
@@ -105,7 +107,6 @@ class ReferenceFrameViewNapari:
 
     def __init__(self, model: AppState) -> None:
         self.model = model
-        from napari import layers
         self.layer: Optional[layers.Image] = None
         self.model.observe(self.on_cropped_refframe_change, ['reference_frame'])
         self.model.crop.observe(self.on_cropped_refframe_change)
@@ -120,7 +121,49 @@ class ReferenceFrameViewNapari:
         self.viewer.reset_view()
 
 
+class MultiFrameExtractionControlsViewNapari:
+    def __init__(self, model: AppState) -> None:
+        self.model = model
+        self.every_n_widget = widgets.SpinBox(min=1, max=1000, value=20)
+        self.n_clusters_widget = widgets.SpinBox(min=2, max=500, value=10)
+        self.run_button = widgets.PushButton(text="Extract Frames")
+        self.run_button.clicked.connect(self.on_run_button_click)
 
+        self.widget = widgets.Container(
+            layout='vertical',
+            widgets=[
+                self.every_n_widget,
+                self.n_clusters_widget,
+                self.run_button,
+            ],
+            labels=False,
+        )
+    
+    def register_napari(self, viewer: napari.Viewer) -> None:
+        viewer.window.add_dock_widget(self.widget, name='')
+
+    def on_run_button_click(self) -> None:
+        self.model.extract_frames_via_kmeans(
+            every_n=self.every_n_widget.value,
+            n_clusters=self.n_clusters_widget.value,
+        )
+
+
+class MultiFrameViewNapari:
+    def __init__(self, model: AppState) -> None:
+        self.model = model
+
+        self.layer: Optional[layers.Image] = None
+        self.model.observe(self.on_selected_frames_change, ['selected_frames'])
+
+    def register_napari(self, viewer: napari.Viewer) -> None:
+        self.layer = viewer.add_image(data=np.zeros(shape=(1, 3, 3, 3), dtype=np.uint8), name='Extracted Frames')
+
+    def on_selected_frames_change(self, change) -> None:
+        self.layer.data = self.model.selected_frames
+
+        
+    
 
 
 app = AppState()
@@ -131,6 +174,12 @@ loader_view.register_napari(viewer=viewer)
 
 ref_view = ReferenceFrameViewNapari(model=app)
 ref_view.register_napari(viewer=viewer)
+
+extract_view = MultiFrameExtractionControlsViewNapari(model=app)
+extract_view.register_napari(viewer=viewer)
+
+extract_frames_view = MultiFrameViewNapari(model=app)
+extract_frames_view.register_napari(viewer=viewer)
 
 napari.run()
 
