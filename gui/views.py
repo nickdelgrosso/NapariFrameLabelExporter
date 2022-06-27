@@ -120,8 +120,8 @@ class MultiFrameExtractionControlsViewNapari:
         self.model = model
 
         # Controls
-        self.every_n_widget = widgets.SpinBox(min=1, max=1000, value=30)
-        self.n_clusters_widget = widgets.SpinBox(min=2, max=500, value=20)
+        self.every_n_widget = widgets.SpinBox(name='Every N Frames', min=1, max=1000, value=30)
+        self.n_clusters_widget = widgets.SpinBox(name='Make N Clusters', min=2, max=500, value=20)
         self.run_button = widgets.PushButton(text="Extract Frames")
         self.progress_bar = widgets.ProgressBar(name='Progress')
         self.run_button.clicked.connect(self.on_run_button_click)
@@ -136,7 +136,7 @@ class MultiFrameExtractionControlsViewNapari:
                 self.run_button,
                 self.progress_bar,
             ],
-            labels=False,
+            labels=True,
         )
 
         # Image Viewer
@@ -154,6 +154,7 @@ class MultiFrameExtractionControlsViewNapari:
         for step in workflow:
             self.progress_bar.max = step.max
             self.progress_bar.value = step.value
+            self.progress_bar.label = step.description
         
     
     # Image Viewer

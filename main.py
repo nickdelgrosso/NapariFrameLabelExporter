@@ -1,6 +1,6 @@
 import napari
 from gui.models import AppState
-from gui.gui import ViewNapari, MultiFrameExtractionControlsViewNapari, LabelingViewNapari
+from gui.views import ViewNapari, MultiFrameExtractionControlsViewNapari, LabelingViewNapari
 
 
 app = AppState()
