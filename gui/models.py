@@ -68,7 +68,10 @@ class AppState(HasTraits, PrintableTraits):
         average_frame = video.read_average_frame(nframes_to_use=10)
         self.video_path = str(filename)
         self.reference_frame = average_frame
-        shape = average_frame.shape
+
+    @observe('reference_frame')
+    def default_crop_with_new_reference_frame(self, change):
+        shape = self.reference_frame.shape
         with self.crop.hold_trait_notifications():
             self.crop.x0 = 0
             self.crop.x1 = shape[1]
