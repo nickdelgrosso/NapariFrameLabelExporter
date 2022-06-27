@@ -1,9 +1,7 @@
-from unittest.mock import Mock
 
-from traitlets import observe
 import numpy as np
 
-from models import AppState
+from gui.models import AppState
 
 
 def test_app_loads_reference_frame_when_video_path_updated():

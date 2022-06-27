@@ -1,18 +1,13 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, NamedTuple, List, Union
+from typing import List, Union, Iterable
 
 import numpy as np
 
-from reader import VideoReader
-from domain import downsample, select_subset_frames_kmeans, pca
-
-
-class Progress(NamedTuple):
-    value: int
-    max: int
-    description: str = ''
+from readers import VideoReader
+from core.video_processing import downsample, select_subset_frames_kmeans, pca
+from workflows.misc import Progress
 
 
 @dataclass

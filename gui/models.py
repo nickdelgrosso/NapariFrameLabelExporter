@@ -1,11 +1,10 @@
-from multiprocessing import allow_connection_pickling
 from typing import Iterable, Optional
 
 import numpy as np
 from traitlets import HasTraits, observe, validate, Instance, Tuple, List, Unicode, Dict, Int, All, TraitError
-from commands import ExtractFramesResult, Progress, extract_frames, Crop
 
-from reader import VideoReader
+from workflows import ExtractFramesResult, Progress, extract_frames, Crop
+from readers import VideoReader
 
 
 class PrintableTraits:

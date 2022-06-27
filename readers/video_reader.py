@@ -1,12 +1,9 @@
-
-
 from pathlib import Path
 from typing import Iterator, Optional
 
 import cv2
 import numpy as np
 from os import path
-from skimage.util import img_as_ubyte
 
 
 class VideoReader:

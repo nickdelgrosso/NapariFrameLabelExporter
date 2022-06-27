@@ -1,10 +1,9 @@
-from time import sleep
 import numpy as np
 import napari
 from napari import layers
 from magicgui import widgets
 
-from models import AppState
+from gui.models import AppState
 
 
 class ViewNapari:
