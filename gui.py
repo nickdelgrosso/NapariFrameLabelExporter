@@ -1,3 +1,4 @@
+from time import sleep
 import numpy as np
 import napari
 from napari import layers
@@ -123,7 +124,10 @@ class MultiFrameExtractionControlsViewNapari:
         self.every_n_widget = widgets.SpinBox(min=1, max=1000, value=30)
         self.n_clusters_widget = widgets.SpinBox(min=2, max=500, value=20)
         self.run_button = widgets.PushButton(text="Extract Frames")
+        self.progress_bar = widgets.ProgressBar(name='Progress')
         self.run_button.clicked.connect(self.on_run_button_click)
+
+        
 
         self.widget = widgets.Container(
             layout='vertical',
@@ -131,6 +135,7 @@ class MultiFrameExtractionControlsViewNapari:
                 self.every_n_widget,
                 self.n_clusters_widget,
                 self.run_button,
+                self.progress_bar,
             ],
             labels=False,
         )
@@ -146,10 +151,11 @@ class MultiFrameExtractionControlsViewNapari:
 
     # Run Button
     def on_run_button_click(self) -> None:
-        self.model.extract_frames_via_kmeans(
-            every_n=self.every_n_widget.value,
-            n_clusters=self.n_clusters_widget.value,
-        )
+        workflow = self.model.extract_frames(n_clusters=self.n_clusters_widget.value, every_n=self.every_n_widget.value)
+        for step in workflow:
+            self.progress_bar.max = step.max
+            self.progress_bar.value = step.value
+        
     
     # Image Viewer
     def on_model_selected_frames_change(self, change) -> None:

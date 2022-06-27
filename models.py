@@ -1,11 +1,10 @@
 from multiprocessing import allow_connection_pickling
-from typing import Optional
+from typing import Iterable, Optional
 
 import numpy as np
 from traitlets import HasTraits, observe, validate, Instance, Tuple, List, Unicode, Dict, Int, All, TraitError
-import cv2
+from commands import ExtractFramesResult, Progress, extract_frames, Crop
 
-from kmeans import select_subset_frames_kmeans
 from reader import VideoReader
 
 
@@ -16,7 +15,7 @@ class PrintableTraits:
         return f"{self.__class__.__name__}({', '.join(f'{key}={val}' for key, val in self.trait_values().items())})"
 
 # Model
-class Crop(HasTraits, PrintableTraits):
+class CropTrait(HasTraits, PrintableTraits):
     x0 = Int(default_value=0)
     x1 = Int(default_value=50)
     x_max = Int(default_value=100)
@@ -57,7 +56,7 @@ class AppState(HasTraits, PrintableTraits):
     video_path = Unicode(allow_none=True)
     reference_frame = Instance(np.ndarray, allow_none=True)
     reference_frame_cropped = Instance(np.ndarray, allow_none=True)
-    crop = Crop()
+    crop = CropTrait()
     selected_frame_indices = List(traits=Int())
     selected_frames = Instance(np.ndarray, allow_none=True)
     body_parts = List(Unicode(), default_value=['head'])
@@ -79,30 +78,26 @@ class AppState(HasTraits, PrintableTraits):
             self.crop.y1 = shape[0]
             self.crop.y_max = shape[0]
         
+    def extract_frames(self, n_clusters: int, every_n: int) -> Iterable[Progress]:
+        workflow = extract_frames(
+            video_path=self.video_path,
+            crop=Crop(x0=self.crop.x0, x1=self.crop.x1, y0=self.crop.y0, y1=self.crop.y1),
+            every_n=every_n,
+            n_clusters=n_clusters,
+        )
+        for step in workflow:
+            if isinstance(step, Progress):
+                yield step
+            else:
+                assert isinstance(step, ExtractFramesResult)
+                self.selected_frame_indices = step.extracted_frame_indices
+                self.selected_frames = step.extracted_frames
+
 
     def get_cropped_reference_frame(self) -> Optional[np.ndarray]:
         crop = self.crop
         frame = self.reference_frame[crop.y0:crop.y1, crop.x0:crop.x1]
         return frame
-
-    def extract_frames_via_kmeans(self, every_n: int = 50, n_clusters: int = 15):
-        # Read the Starting Frames to Analyze From the Video, cropping the frames to match the reference
-        video = VideoReader(filename=self.video_path)
-        frames = np.array(list(video.read_frames(step=every_n)))
-
-        # Crop Frames to Match Reference Frame
-        crop = self.crop
-        frames_cropped = frames[:, crop.y0:crop.y1, crop.x0:crop.x1]
-
-        # Extract only a Selection of Frames after clustering them using KMeans
-        
-        l, h, w, c = frames.shape
-        frames_to_cluster = np.array([cv2.resize(frame, (w//3, h//3), fx=0, fy=0, interpolation=cv2.INTER_AREA) for frame in frames_cropped])
-        frames_to_cluster = frames_to_cluster[:, :, :, 0]
-        selected_frame_indices = select_subset_frames_kmeans(frames=frames_to_cluster, n_clusters=n_clusters)
-        self.selected_frame_indices = selected_frame_indices
-        self.selected_frames = frames[selected_frame_indices]
-
 
     def get_cropped_selected_frames(self) -> Optional[np.ndarray]:
         frames = self.selected_frames
