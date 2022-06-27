@@ -15,7 +15,7 @@ class PrintableTraits:
         return f"{self.__class__.__name__}({', '.join(f'{key}={val}' for key, val in self.trait_values().items())})"
 
 # Model
-class CropTrait(HasTraits, PrintableTraits):
+class CropState(HasTraits, PrintableTraits):
     x0 = Int(default_value=0)
     x1 = Int(default_value=50)
     x_max = Int(default_value=100)
@@ -56,7 +56,7 @@ class AppState(HasTraits, PrintableTraits):
     video_path = Unicode(allow_none=True)
     reference_frame = Instance(np.ndarray, allow_none=True)
     reference_frame_cropped = Instance(np.ndarray, allow_none=True)
-    crop = CropTrait()
+    crop = CropState()
     selected_frame_indices = List(traits=Int())
     selected_frames = Instance(np.ndarray, allow_none=True)
     body_parts = List(Unicode(), default_value=['head'])
