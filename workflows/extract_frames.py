@@ -26,7 +26,7 @@ class ExtractFramesResult:
 
 
 
-def extract_frames(video_path: Path, crop: Crop, n_clusters: int = 20, every_n: int = 30) -> Iterable[Union[Progress, ExtractFramesResult]]:
+def extract_frames(video_path: Path, crop: Crop, n_clusters: int = 20, every_n: int = 30, downsample_level: int = 3) -> Iterable[Union[Progress, ExtractFramesResult]]:
 
     video = VideoReader(filename=video_path)
 
@@ -42,7 +42,7 @@ def extract_frames(video_path: Path, crop: Crop, n_clusters: int = 20, every_n: 
     frames_to_cluster = []
     for idx, frame in enumerate(frames):
         frame_cropped = frame[crop.y0:crop.y1, crop.x0:crop.x1]
-        frame = downsample(frame_cropped, level=3)
+        frame = downsample(frame_cropped, level=downsample_level)
         frames_to_cluster.append(frame)
         yield Progress(value=idx, max=len(frames), description='Downsampling Frames for Quicker Analysis...')
     

@@ -15,23 +15,23 @@ class ViewNapari:
         self._videp_picker = widgets.FileEdit(label='Select Video:')
         self._videp_picker.changed.connect(self.on_videopath_change)
 
-        self._crop_x0 =  widgets.IntSlider(label='x0', max=10)
+        self._crop_x0 =  widgets.IntSlider(label='Crop X Min', max=10)
         self._crop_x0.changed.connect(self.on_crop_x0_change)
         self.model.crop.observe(self.on_model_crop_x0_change, 'x0')
         self._crop_x0.visible = False
 
         
-        self._crop_x1 =  widgets.IntSlider(label='x1', max=10)
+        self._crop_x1 =  widgets.IntSlider(label='Crop X Max', max=10)
         self._crop_x1.changed.connect(self.on_crop_x1_change)
         self.model.crop.observe(self.on_model_crop_x1_change, 'x1')
         self._crop_x1.visible = False
 
-        self._crop_y0 =  widgets.IntSlider(label='y0', max=10)
+        self._crop_y0 =  widgets.IntSlider(label='Crop Y Min', max=10)
         self._crop_y0.changed.connect(self.on_crop_y0_change)
         self.model.crop.observe(self.on_model_crop_y0_change, 'y0')
         self._crop_y0.visible = False
 
-        self._crop_y1 =  widgets.IntSlider(label='y1', max=10)
+        self._crop_y1 =  widgets.IntSlider(label='Crop Y Max', max=10)
         self._crop_y1.changed.connect(self.on_crop_y1_change)
         self.model.crop.observe(self.on_model_crop_y1_change, 'y1')
         self._crop_y1.visible = False
@@ -39,7 +39,7 @@ class ViewNapari:
         self.widget = widgets.Container(
             layout='vertical',
             widgets=[self._videp_picker, self._crop_x0, self._crop_x1, self._crop_y0, self._crop_y1],
-            labels=False,
+            labels=True,
         )
 
         # Image Viewer
@@ -50,7 +50,7 @@ class ViewNapari:
 
     def register_napari(self, viewer: napari.Viewer) -> None:
         self.viewer = viewer
-        viewer.window.add_dock_widget(self.widget, name='')
+        viewer.window.add_dock_widget(self.widget, name='Video Loader')
 
     def show(self, run: bool = False):
         self.widget.show(run=run)
@@ -122,6 +122,7 @@ class MultiFrameExtractionControlsViewNapari:
         # Controls
         self.every_n_widget = widgets.SpinBox(name='Every N Frames', min=1, max=1000, value=30)
         self.n_clusters_widget = widgets.SpinBox(name='Make N Clusters', min=2, max=500, value=20)
+        self.downsample_widget = widgets.SpinBox(name='Downsample Level (For Clustering)', min=1, max=50, value=3)
         self.run_button = widgets.PushButton(text="Extract Frames")
         self.progress_bar = widgets.ProgressBar(name='Progress')
         self.run_button.clicked.connect(self.on_run_button_click)
@@ -133,6 +134,7 @@ class MultiFrameExtractionControlsViewNapari:
             widgets=[
                 self.every_n_widget,
                 self.n_clusters_widget,
+                self.downsample_widget,
                 self.run_button,
                 self.progress_bar,
             ],
@@ -150,7 +152,11 @@ class MultiFrameExtractionControlsViewNapari:
 
     # Run Button
     def on_run_button_click(self) -> None:
-        workflow = self.model.extract_frames(n_clusters=self.n_clusters_widget.value, every_n=self.every_n_widget.value)
+        workflow = self.model.extract_frames(
+            n_clusters=self.n_clusters_widget.value, 
+            every_n=self.every_n_widget.value,
+            downsample_level=self.downsample_widget.value,
+        )
         for step in workflow:
             self.progress_bar.max = step.max
             self.progress_bar.value = step.value

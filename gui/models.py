@@ -80,12 +80,13 @@ class AppState(HasTraits, PrintableTraits):
             self.crop.y1 = shape[0]
             self.crop.y_max = shape[0]
         
-    def extract_frames(self, n_clusters: int, every_n: int) -> Iterable[Progress]:
+    def extract_frames(self, n_clusters: int, every_n: int, downsample_level: int) -> Iterable[Progress]:
         workflow = extract_frames(
             video_path=self.video_path,
             crop=Crop(x0=self.crop.x0, x1=self.crop.x1, y0=self.crop.y0, y1=self.crop.y1),
             every_n=every_n,
             n_clusters=n_clusters,
+            downsample_level=downsample_level
         )
         for step in workflow:
             if isinstance(step, Progress):
