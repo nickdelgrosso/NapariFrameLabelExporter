@@ -39,8 +39,7 @@ def extract_frames(video_path: Path, crop: Crop, n_clusters: int = 20, every_n: 
     yield Progress(value=0, max=2, description='Reading Frames from File...')
     frames = []
     for idx, frame in enumerate(video.read_frames(step=every_n)):
-        frame_downsampled = downsample(frame, level=3)
-        frames.append(frame_downsampled)
+        frames.append(frame)
         yield Progress(value=idx, max=int(len(video) // every_n), description='Reading Frames from File...')
     frames = np.array(frames)
     yield Progress(value=1, max=2)
@@ -58,11 +57,11 @@ def extract_frames(video_path: Path, crop: Crop, n_clusters: int = 20, every_n: 
     frames_to_cluster = np.array(frames_to_cluster)
 
     # Extract only a Selection of Frames after clustering them using KMeans
-    yield Progress(value=0, max=2, description="Selecting Frames (PCA)...")
+    yield Progress(value=1, max=3, description="Selecting Frames (PCA)...")
     frame_components = pca(frames_to_cluster)
-    yield Progress(value=1, max=2, description="Selecting Frames (KMeans)...")
+    yield Progress(value=2, max=3, description="Selecting Frames (KMeans)...")
     selected_frame_indices = select_subset_frames_kmeans(frames=frame_components, n_clusters=n_clusters)
-    yield Progress(value=2, max=2, description="Done!")
+    yield Progress(value=3, max=3, description="Done!")
 
     # Update model
     yield ExtractFramesResult(
