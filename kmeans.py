@@ -13,7 +13,7 @@ def select_subset_frames_kmeans(frames: np.ndarray, n_clusters: int = 20, do_pca
 
     if do_pca:
         print('starting pca')
-        do_pca = PCA(n_components=500)
+        do_pca = PCA(n_components=min(flat_frames.shape))
         component_frames = do_pca.fit_transform(flat_frames)
 
     kmeans = MiniBatchKMeans(n_clusters=n_clusters, tol=1e-5, batch_size=100, max_iter=50, verbose=1)
