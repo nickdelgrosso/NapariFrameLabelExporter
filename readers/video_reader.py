@@ -22,6 +22,14 @@ class VideoReader:
     def __len__(self) -> int:
         return self.n_frames
 
+    @property
+    def frame_height(self) -> int:
+        return int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    @property
+    def frame_width(self) -> int:
+        return int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+
     def seek_to(self, frame_idx) -> None:
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
 
