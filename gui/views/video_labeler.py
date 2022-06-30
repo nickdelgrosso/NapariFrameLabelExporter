@@ -1,8 +1,9 @@
 import numpy as np
 import napari
 from napari import layers
+from napari.utils.events import Event
 from magicgui import widgets
-
+import pandas as pd
 
 from gui.models import AppState
 from gui.views.base import BaseNapariView
@@ -55,9 +56,18 @@ class LabelingViewNapari(BaseNapariView):
         )
 
         # Labels Points Viewer
-        self.point_layer = layers.Points(ndim=3, symbol='o', size=12, name='Body Part Labels', opacity=0.6)
-        self.model.observe(self.on_model_selected_frames_change, 'selected_frames')
+        self.point_layer = layers.Points(
+            name='Body Part Labels', 
+            ndim=3, 
+            symbol='o', 
+            size=12, 
+            opacity=0.6,
+            properties={'label': []},
+            # edge_color_
+        )
+        self.model.observe(self.on_model_selected_frames_change, 'selected_frames') 
         self.point_layer.events.data.connect(self.on_pointlayer_data_event)
+        self.model.observe(self.on_model_labels_change, 'labels')
         # Interesting event types so far: 'highlight', 'mode', 'data'.
 
         # Potential event types:
@@ -84,6 +94,8 @@ class LabelingViewNapari(BaseNapariView):
     def on_current_bodypart_widget_selection_change(self, value: str):
         self.model.current_body_part = value
         self.current_bodypart_widget.value = self.model.current_body_part
+        self.point_layer.feature_defaults['label'] = self.model.current_body_part
+
 
     def on_model_bodyparts_change(self, change):
         self.current_bodypart_widget.choices = self.model.body_parts
@@ -94,9 +106,19 @@ class LabelingViewNapari(BaseNapariView):
         self.model.remove_bodypart(body_part=current)
 
     # Points Layer View
-    def on_pointlayer_data_event(self, event):
-        print(event, str(event))
+    def on_pointlayer_data_event(self, event: Event):
+        coords = self.point_layer.data[:, 1:3]
+        frame_indices = self.point_layer.data[:, 0]
 
+        self.model.update_labels(
+            points=coords, 
+            frame_indices=frame_indices,
+            labels=self.point_layer.properties['label'],
+        )
+
+    def on_model_labels_change(self, change):
+        self.point_layer.data = self.model.labels[['FrameIndex', 'i', 'j']]
+        self.point_layer.properties['label'] = self.model.labels['label']
 
 
     def on_model_selected_frames_change(self, change):

@@ -1,17 +1,13 @@
 from typing import Iterable, Optional
 
 import numpy as np
+import pandas as pd
 from traitlets import HasTraits, observe, validate, Instance, Tuple, List, Unicode, Dict, Int, All, TraitError
-
+import typing as tp
 from workflows import ExtractFramesResult, Progress, extract_frames, Crop
 from readers import VideoReader
 
-
-class PrintableTraits:
-    """Makes HasTrait instances pretty-print the trait values, to help with debugging."""
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({', '.join(f'{key}={val}' for key, val in self.trait_values().items())})"
+from .utils import PrintableTraits
 
 # Model
 class CropState(HasTraits, PrintableTraits):
@@ -80,6 +76,16 @@ class AppState(HasTraits, PrintableTraits):
             self.crop.y1 = shape[0]
             self.crop.y_max = shape[0]
         
+    def update_labels(self, frame_indices: tp.List[int], points: tp.List[tp.Tuple[int, int]], labels: tp.List[str]):
+        df = pd.DataFrame().assign(
+            FrameIndex=np.array(frame_indices, dtype=int),
+            i=np.array(points[:, 0], dtype=int),
+            j=np.array(points[:, 1], dtype=int),
+            label=np.array(labels, dtype=str),
+        )
+        print(df)
+        self.labels = df
+
     def extract_frames(self, n_clusters: int, every_n: int, downsample_level: int) -> Iterable[Progress]:
         workflow = extract_frames(
             video_path=self.video_path,
