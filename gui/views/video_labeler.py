@@ -4,9 +4,11 @@ from napari import layers
 from napari.utils.events import Event
 from magicgui import widgets
 import pandas as pd
+from matplotlib.pyplot import colormaps
 
 from gui.models import AppState
 from gui.views.base import BaseNapariView
+
 
         
 class LabelingViewNapari(BaseNapariView):
@@ -63,8 +65,10 @@ class LabelingViewNapari(BaseNapariView):
             size=12, 
             opacity=0.6,
             properties={'label': []},
-            # edge_color_
         )
+        cmap = colormaps['Set1'].colors
+        cmap = append_ones_column(cmap)
+        self.edge_cmap = cmap
         self.model.observe(self.on_model_selected_frames_change, 'selected_frames') 
         self.point_layer.events.data.connect(self.on_pointlayer_data_event)
         self.model.observe(self.on_model_labels_change, 'labels')
@@ -87,7 +91,8 @@ class LabelingViewNapari(BaseNapariView):
         text = self.add_bodypart_text_widget.value
         if text:
             body_parts = [s.strip() for s in text.split(';')]
-            self.model.body_parts = body_parts
+            body_parts = [s for s in body_parts if s]
+            self.model.add_bodyparts(body_parts=body_parts)
             self.add_bodypart_text_widget.value = ''  # clear textfield
 
     # Select Current Bodypart Dropdown box
@@ -117,8 +122,16 @@ class LabelingViewNapari(BaseNapariView):
         )
 
     def on_model_labels_change(self, change):
-        self.point_layer.data = self.model.labels[['FrameIndex', 'i', 'j']]
+        data = self.model.labels[['FrameIndex', 'i', 'j']].to_numpy()
+        if not np.allclose(self.point_layer.data, data):
+            self.point_layer.data = data
         self.point_layer.properties['label'] = self.model.labels['label']
+
+        edge_color_map = {name: self.edge_cmap[idx] for idx, name in enumerate(self.model.body_parts)}
+        edge_colors = np.array([edge_color_map[name] for name in self.model.labels['label']])
+        self.point_layer.edge_color = edge_colors
+        self.point_layer.face_color[:, -1] = 0  # make face transparent
+        print(self.point_layer.edge_color)
 
 
     def on_model_selected_frames_change(self, change):
@@ -128,3 +141,9 @@ class LabelingViewNapari(BaseNapariView):
             layers.move(layers.index(self.point_layer), -1)  # move the points layer to the end
 
     
+
+def append_ones_column(mat: np.ndarray) -> np.ndarray:
+    return np.hstack((
+        mat, 
+        np.ones(shape=(len(mat), 1)),
+    ))

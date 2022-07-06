@@ -22,6 +22,7 @@ class AppState(HasTraits, PrintableTraits):
     selected_frames = Instance(np.ndarray, allow_none=True)
     body_parts = List(Unicode(), default_value=['head'])
     current_body_part = Unicode(allow_none=True, default_value='head')
+    labels = Instance(pd.DataFrame, default_value=pd.DataFrame())
 
         
     #### Commands ####
@@ -49,8 +50,8 @@ class AppState(HasTraits, PrintableTraits):
             j=np.array(points[:, 1], dtype=int),
             label=np.array(labels, dtype=str),
         )
-        print(df)
         self.labels = df
+
 
     def extract_frames(self, n_clusters: int, every_n: int, downsample_level: int) -> Iterable[Progress]:
         workflow = extract_frames(
@@ -82,6 +83,9 @@ class AppState(HasTraits, PrintableTraits):
         frames_cropped = frames[:, crop.y0:crop.y1, crop.x0:crop.x1]
         return frames_cropped
 
+
+    def add_bodyparts(self, body_parts: tp.List[str]):
+        self.body_parts = list(set(self.body_parts + list(body_parts)))
 
     def remove_bodypart(self, body_part: str):
         if body_part in self.body_parts:
