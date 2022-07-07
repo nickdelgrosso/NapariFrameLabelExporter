@@ -1,4 +1,4 @@
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -7,8 +7,9 @@ import typing as tp
 from workflows import ExtractFramesResult, Progress, extract_frames, Crop
 from readers import VideoReader
 
-from .utils import PrintableTraits
+from .utils import PrintableTraits, cycle_next_item, cycle_prev_item
 from .crop import CropState
+
 
 # Model
         
@@ -20,8 +21,8 @@ class AppState(HasTraits, PrintableTraits):
     crop = CropState()
     selected_frame_indices = List(traits=Int())
     selected_frames = Instance(np.ndarray, allow_none=True)
-    body_parts = List(Unicode(), default_value=['head'])
-    current_body_part = Unicode(allow_none=True, default_value='head')
+    body_parts = List(Unicode(), default_value=[])
+    current_body_part = Unicode(allow_none=True)
     labels = Instance(pd.DataFrame, default_value=pd.DataFrame())
 
         
@@ -83,10 +84,22 @@ class AppState(HasTraits, PrintableTraits):
         frames_cropped = frames[:, crop.y0:crop.y1, crop.x0:crop.x1]
         return frames_cropped
 
+    def set_bodyparts(self, body_parts: tp.List[str]) -> None:
+        self.body_parts = body_parts
 
-    def add_bodyparts(self, body_parts: tp.List[str]):
+    def add_bodyparts(self, body_parts: tp.List[str]) -> None:
         self.body_parts = list(set(self.body_parts + list(body_parts)))
 
-    def remove_bodypart(self, body_part: str):
+    def remove_bodypart(self, body_part: str) -> None:
         if body_part in self.body_parts:
             self.body_parts = [part for part in self.body_parts if part != body_part]
+
+    def cycle_next_bodypart(self) -> None:
+        self.current_body_part = cycle_next_item(items=self.body_parts, item=self.current_body_part)
+
+    def cycle_prev_bodypart(self) -> None:
+        self.current_body_part = cycle_prev_item(items=self.body_parts, item=self.current_body_part)
+
+
+
+

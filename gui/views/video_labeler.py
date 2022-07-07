@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 import napari
 from napari import layers
@@ -18,41 +19,19 @@ class LabelingViewNapari(BaseNapariView):
 
         # Add-bodypart widget (text box + submit button)
         self.add_bodypart_text_widget = widgets.LineEdit()
-        self.add_bodypart_button = widgets.PushButton(text='Add')
-        self.add_bodypart_button.clicked.connect(self.on_add_bodypart_button_clicked)
-
-        self.add_bodypart_widget = widgets.Container(
-            layout='horizontal',
-            widgets=[
-                self.add_bodypart_text_widget,
-                self.add_bodypart_button,
-            ],
-            labels=False,
-        )
-
+        self.add_bodypart_text_widget.changed.connect(self.on_bodypart_text_changed)
+        
         # Select-Current-Bodypart widget
         self.current_bodypart_widget = widgets.ComboBox(choices=(), allow_multiple=False)
         self.current_bodypart_widget.changed.connect(self.on_current_bodypart_widget_selection_change)
-        self.model.observe(self.on_model_bodyparts_change)
-
-        self.delete_current_bodypart_button = widgets.PushButton(text="Delete")
-        self.delete_current_bodypart_button.clicked.connect(self.on_delete_current_bodypart_button_click)
-
-        self.bodypart_selection_deletion_widget = widgets.Container(
-            layout='horizontal',
-            widgets=[
-                self.current_bodypart_widget,
-                self.delete_current_bodypart_button,
-            ],
-            labels=False
-        )
+        self.model.observe(self.on_model_bodyparts_change, ['body_parts', 'current_body_part'])
 
         # All widgets together
         self.widget = widgets.Container(
             layout='vertical',
             widgets=[
-                self.add_bodypart_widget,
-                self.bodypart_selection_deletion_widget,
+                self.add_bodypart_text_widget,
+                self.current_bodypart_widget,
             ],
             labels=False,
         )
@@ -65,6 +44,7 @@ class LabelingViewNapari(BaseNapariView):
             size=12, 
             opacity=0.6,
             properties={'label': []},
+            edge_width=0.2,
         )
         cmap = colormaps['Set1'].colors
         cmap = append_ones_column(cmap)
@@ -72,6 +52,14 @@ class LabelingViewNapari(BaseNapariView):
         self.model.observe(self.on_model_selected_frames_change, 'selected_frames') 
         self.point_layer.events.data.connect(self.on_pointlayer_data_event)
         self.model.observe(self.on_model_labels_change, 'labels')
+        keyboard_shortcuts = {
+            'S': self.cycle_next_bodypart,
+            'W': self.cycle_previous_bodypart,
+        }
+        for key, fun in keyboard_shortcuts.items():
+            self.point_layer.bind_key(key)(fun)
+        self.point_layer.mode = 'ADD'
+
         # Interesting event types so far: 'highlight', 'mode', 'data'.
 
         # Potential event types:
@@ -87,13 +75,9 @@ class LabelingViewNapari(BaseNapariView):
         
 
     # Add Bodypart button
-    def on_add_bodypart_button_clicked(self):
-        text = self.add_bodypart_text_widget.value
-        if text:
-            body_parts = [s.strip() for s in text.split(';')]
-            body_parts = [s for s in body_parts if s]
-            self.model.add_bodyparts(body_parts=body_parts)
-            self.add_bodypart_text_widget.value = ''  # clear textfield
+    def on_bodypart_text_changed(self, text: str):
+        body_parts = [s.strip() for s in text.split(';') if s.strip()]  if text else []
+        self.model.set_bodyparts(body_parts=body_parts)
 
     # Select Current Bodypart Dropdown box
     def on_current_bodypart_widget_selection_change(self, value: str):
@@ -104,24 +88,31 @@ class LabelingViewNapari(BaseNapariView):
 
     def on_model_bodyparts_change(self, change):
         self.current_bodypart_widget.choices = self.model.body_parts
-        
-    # Delete Current Bodypart button
-    def on_delete_current_bodypart_button_click(self):
-        current = self.model.current_body_part
-        self.model.remove_bodypart(body_part=current)
+        self.current_bodypart_widget.value = self.model.current_body_part
 
     # Points Layer View
     def on_pointlayer_data_event(self, event: Event):
-        coords = self.point_layer.data[:, 1:3]
-        frame_indices = self.point_layer.data[:, 0]
+        
 
-        self.model.update_labels(
-            points=coords, 
-            frame_indices=frame_indices,
-            labels=self.point_layer.properties['label'],
-        )
+        if not len(self.point_layer.data):
+            return
+        if self.model.body_parts:
+            coords = self.point_layer.data[:, 1:3]
+            frame_indices = self.point_layer.data[:, 0]
+            self.model.update_labels(
+                points=coords, 
+                frame_indices=frame_indices,
+                labels=self.point_layer.properties['label'],
+            )
+            self.cycle_next_bodypart()
+        else:
+            data = self.point_layer.data
+            self.point_layer.data = np.empty(shape=(0, data.shape[1]), dtype=data.dtype)
 
     def on_model_labels_change(self, change):
+        if not self.model.body_parts:
+            return
+
         data = self.model.labels[['FrameIndex', 'i', 'j']].to_numpy()
         if not np.allclose(self.point_layer.data, data):
             self.point_layer.data = data
@@ -140,7 +131,11 @@ class LabelingViewNapari(BaseNapariView):
             layers = self.viewer.layers
             layers.move(layers.index(self.point_layer), -1)  # move the points layer to the end
 
-    
+    def cycle_next_bodypart(self, layer: Optional[layers.Points] = None):
+        self.model.cycle_next_bodypart()
+
+    def cycle_previous_bodypart(self, layer: Optional[layers.Points] = None):
+        self.model.cycle_prev_bodypart()
 
 def append_ones_column(mat: np.ndarray) -> np.ndarray:
     return np.hstack((

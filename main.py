@@ -20,7 +20,7 @@ def main(debug=False):
 
     if debug:
         app.load_video(filename=r"C:\Users\nickdg\Projects\WaspTracker\data\raw\jwasp0.avi")
-        list(app.extract_frames(n_clusters=5, every_n=40, downsample_level=10))
+        list(app.extract_frames(n_clusters=10, every_n=40, downsample_level=10))
         app.body_parts
 
     napari.run()
