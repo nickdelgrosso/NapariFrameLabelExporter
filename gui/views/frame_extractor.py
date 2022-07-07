@@ -1,3 +1,6 @@
+import subprocess
+from pathlib import Path
+import sys
 import numpy as np
 import napari
 from napari import layers
@@ -15,9 +18,16 @@ class MultiFrameExtractionControlsViewNapari(BaseNapariView):
         self.every_n_widget = widgets.SpinBox(name='Every N Frames', min=1, max=1000, value=30)
         self.n_clusters_widget = widgets.SpinBox(name='Make N Clusters', min=2, max=500, value=20)
         self.downsample_widget = widgets.SpinBox(name='Downsample Level (For Clustering)', min=1, max=50, value=3)
+        
         self.run_button = widgets.PushButton(text="Extract Frames")
-        self.progress_bar = widgets.ProgressBar(name='Progress')
         self.run_button.clicked.connect(self.on_run_button_click)
+        
+        self.progress_bar = widgets.ProgressBar(name='Progress')
+        
+        self.export_frames_fileselector = widgets.FileEdit(label='Export Frames to Directory', mode='d')
+        self.export_frames_fileselector.changed.connect(self.on_export_frames_button_change)
+        self.export_frames_fileselector.visible = False  # Can't export frames if none are loaded.
+
 
         
 
@@ -29,6 +39,7 @@ class MultiFrameExtractionControlsViewNapari(BaseNapariView):
                 self.downsample_widget,
                 self.run_button,
                 self.progress_bar,
+                self.export_frames_fileselector,
             ],
             labels=True,
         )
@@ -59,10 +70,19 @@ class MultiFrameExtractionControlsViewNapari(BaseNapariView):
     def on_model_selected_frames_change(self, change) -> None:
         if self.layer not in self.viewer.layers:
             self.viewer.add_layer(self.layer)
-        self.layer.data = self.model.get_cropped_selected_frames()
+
+        frames = self.model.get_cropped_selected_frames()
+        self.export_frames_fileselector.visible = False if frames is None else True
+        self.layer.data = frames
+
 
     def on_model_crop_change(self, change) -> None:
         frames = self.model.get_cropped_selected_frames()
         if frames is not None:
             self.layer.data = frames
 
+
+    def on_export_frames_button_change(self, directory: Path):
+        self.model.export_frames_to_directory(directory=directory)
+        if 'win' in sys.platform:
+            subprocess.call(f'explorer {str(directory)}')

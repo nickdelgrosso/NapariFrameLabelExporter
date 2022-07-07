@@ -13,7 +13,7 @@ class ViewNapari(BaseNapariView):
         self.model = model
 
         # Controls
-        self._videp_picker = widgets.FileEdit(label='Select Video:')
+        self._videp_picker = widgets.FileEdit(label='Select Video:', mode='r')
         self._videp_picker.changed.connect(self.on_videopath_change)
 
         self._crop_x0 =  widgets.IntSlider(label='Crop X Min', max=10)

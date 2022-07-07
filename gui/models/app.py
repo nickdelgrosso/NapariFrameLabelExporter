@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, Iterable, Optional, Union
 
 import numpy as np
@@ -6,6 +7,7 @@ from traitlets import HasTraits, observe, validate, Instance, Tuple, List, Unico
 import typing as tp
 from workflows import ExtractFramesResult, Progress, extract_frames, Crop
 from readers import VideoReader
+import cv2
 
 from .utils import PrintableTraits, cycle_next_item, cycle_prev_item
 from .crop import CropState
@@ -101,5 +103,11 @@ class AppState(HasTraits, PrintableTraits):
         self.current_body_part = cycle_prev_item(items=self.body_parts, item=self.current_body_part)
 
 
+    def export_frames_to_directory(self, directory: Path) -> None:
+        directory.mkdir(parents=True, exist_ok=True)
 
-
+        filename_template = Path(self.video_path).stem + "__{frame_idx}.png"
+        for idx, frame in zip(self.selected_frame_indices, self.selected_frames):
+            filename = filename_template.format(frame_idx=idx)
+            full_filename = directory.joinpath(filename)
+            cv2.imwrite(filename=str(full_filename), img=frame)
