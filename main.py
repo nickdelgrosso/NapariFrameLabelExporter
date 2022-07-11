@@ -14,6 +14,7 @@ def main(debug=False):
 
     extract_view = MultiFrameExtractionControlsViewNapari(model=app)
     extract_view.register_napari(viewer=viewer)
+    extract_view.register_appmodel(model=app)
 
     labeler_view = LabelingViewNapari(model=app)
     labeler_view.register_napari(viewer=viewer)

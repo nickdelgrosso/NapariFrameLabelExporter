@@ -67,7 +67,7 @@ def match_items_atttributes_to_kwargs(fun: Callable[..., A], key: str, **kwargs:
     >>> model = SimpleNamespace(value=10, name='Nick')
     >>> change = {'new': 3, 'owner': model}
     >>> add3 = lambda x: x + 3
-    >>> add3_callback = match_traitlets_observable_to_kwargs(add3, 'owner', x='value')
+    >>> add3_callback = match_items_atttributes_to_kwargs(add3, 'owner', x='value')
     >>> add3_callback(change)
     13
 

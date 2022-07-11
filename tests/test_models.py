@@ -13,14 +13,14 @@ def test_app_loads_reference_frame_when_video_path_updated():
 
 def test_app_sets_crop_to_frame_dimensions_when_reference_frame_set():
     app = AppState()
-    assert app.crop.x1 is not 20
+    assert app.x1 is not 20
     app.reference_frame = np.empty((10, 20))
-    assert app.crop.x0 == 0
-    assert app.crop.x1 == 20
-    assert app.crop.x_max == 20
-    assert app.crop.y0 == 0
-    assert app.crop.y1 == 10
-    assert app.crop.y_max == 10
+    assert app.x0 == 0
+    assert app.x1 == 20
+    assert app.x_max == 20
+    assert app.y0 == 0
+    assert app.y1 == 10
+    assert app.y_max == 10
     
     
     # detector = Mock()

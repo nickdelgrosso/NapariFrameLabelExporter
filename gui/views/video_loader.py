@@ -18,23 +18,23 @@ class ViewNapari(BaseNapariView):
 
         self._crop_x0 =  widgets.IntSlider(label='Crop X Min', max=10)
         self._crop_x0.changed.connect(self.on_crop_x0_change)
-        self.model.crop.observe(self.on_model_crop_x0_change, 'x0')
+        self.model.observe(self.on_model_crop_x0_change, 'x0')
         self._crop_x0.visible = False
 
         
         self._crop_x1 =  widgets.IntSlider(label='Crop X Max', max=10)
         self._crop_x1.changed.connect(self.on_crop_x1_change)
-        self.model.crop.observe(self.on_model_crop_x1_change, 'x1')
+        self.model.observe(self.on_model_crop_x1_change, 'x1')
         self._crop_x1.visible = False
 
         self._crop_y0 =  widgets.IntSlider(label='Crop Y Min', max=10)
         self._crop_y0.changed.connect(self.on_crop_y0_change)
-        self.model.crop.observe(self.on_model_crop_y0_change, 'y0')
+        self.model.observe(self.on_model_crop_y0_change, 'y0')
         self._crop_y0.visible = False
 
         self._crop_y1 =  widgets.IntSlider(label='Crop Y Max', max=10)
         self._crop_y1.changed.connect(self.on_crop_y1_change)
-        self.model.crop.observe(self.on_model_crop_y1_change, 'y1')
+        self.model.observe(self.on_model_crop_y1_change, 'y1')
         self._crop_y1.visible = False
 
         self.widget = widgets.Container(
@@ -46,7 +46,7 @@ class ViewNapari(BaseNapariView):
         # Image Viewer
         self.layer = layers.Image(data=np.zeros(shape=(3, 3, 3), dtype=np.uint8), name='Reference Image')
         self.model.observe(self.on_model_cropped_refframe_change, ['reference_frame'])
-        self.model.crop.observe(self.on_model_cropped_refframe_change)
+        self.model.observe(self.on_model_cropped_refframe_change)
 
 
     def register_napari(self, viewer: napari.Viewer) -> None:
@@ -72,46 +72,48 @@ class ViewNapari(BaseNapariView):
     
     # x0
     def on_crop_x0_change(self):
-        self.model.crop.x0 = self._crop_x0.value  # update model from view
-        self._crop_x0.value = self.model.crop.x0  # update view again after model does validation (e.g. slider is not allowed to be there.)
+        self.model.x0 = self._crop_x0.value  # update model from view
+        self._crop_x0.value = self.model.x0  # update view again after model does validation (e.g. slider is not allowed to be there.)
 
     def on_model_crop_x0_change(self, change):
-        self._crop_x0.max = self.model.crop.x_max
+        self._crop_x0.max = self.model.x_max
         self._crop_x0.value = change['new']
         
     # x1
     def on_crop_x1_change(self):
-        self.model.crop.x1 = self._crop_x1.value
-        self._crop_x1.value = self.model.crop.x1
+        self.model.x1 = self._crop_x1.value
+        self._crop_x1.value = self.model.x1
 
 
     def on_model_crop_x1_change(self, change):
-        self._crop_x1.max = self.model.crop.x_max
+        self._crop_x1.max = self.model.x_max
         self._crop_x1.value = change['new']
 
     # y0
     def on_crop_y0_change(self):
-        self.model.crop.y0 = self._crop_y0.value
-        self._crop_y0.value = self.model.crop.y0
+        self.model.y0 = self._crop_y0.value
+        self._crop_y0.value = self.model.y0
 
     def on_model_crop_y0_change(self, change):
-        self._crop_y0.max = self.model.crop.y_max
-        self._crop_y0.value = self.model.crop.y0
+        self._crop_y0.max = self.model.y_max
+        self._crop_y0.value = self.model.y0
 
     # y1
     def on_crop_y1_change(self):
-        self.model.crop.y1 = self._crop_y1.value
-        self._crop_y1.value = self.model.crop.y1
+        self.model.y1 = self._crop_y1.value
+        self._crop_y1.value = self.model.y1
 
     def on_model_crop_y1_change(self, change):
-        self._crop_y1.max = self.model.crop.y_max
-        self._crop_y1.value = self.model.crop.y1
+        self._crop_y1.max = self.model.y_max
+        self._crop_y1.value = self.model.y1
 
     # Image Viewer    
     def on_model_cropped_refframe_change(self, change) -> None:
-        if self.layer not in self.viewer.layers and self.model.reference_frame is not None:
+        if self.layer not in self.viewer.layers:
             self.viewer.add_layer(self.layer)
-        self.layer.data = self.model.get_cropped_reference_frame()
-        self.viewer.reset_view()
+        frame = self.model.get_cropped_reference_frame()
+        if frame is not None:
+            self.layer.data = frame
+            self.viewer.reset_view()
 
     

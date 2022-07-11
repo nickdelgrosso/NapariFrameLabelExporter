@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
 import sys
+from typing import Optional
 import numpy as np
 import napari
 from napari import layers
@@ -8,11 +9,11 @@ from magicgui import widgets
 
 from gui.models import AppState
 from gui.views.base import BaseNapariView
+from gui.views.utils import match_items_atttributes_to_kwargs
 
 
 class MultiFrameExtractionControlsViewNapari(BaseNapariView):
     def __init__(self, model: AppState) -> None:
-        self.model = model
 
         # Controls
         self.every_n_widget = widgets.SpinBox(name='Every N Frames', min=1, max=1000, value=30)
@@ -20,7 +21,6 @@ class MultiFrameExtractionControlsViewNapari(BaseNapariView):
         self.downsample_widget = widgets.SpinBox(name='Downsample Level (For Clustering)', min=1, max=50, value=3)
         
         self.run_button = widgets.PushButton(text="Extract Frames")
-        self.run_button.clicked.connect(self.on_run_button_click)
         
         self.progress_bar = widgets.ProgressBar(name='Progress')
         
@@ -46,40 +46,43 @@ class MultiFrameExtractionControlsViewNapari(BaseNapariView):
 
         # Image Viewer
         self.layer = layers.Image(data=np.zeros(shape=(1, 3, 3, 3), dtype=np.uint8), name='Extracted Frames')
-        self.model.observe(self.on_model_selected_frames_change, ['selected_frames'])
-        self.model.crop.observe(self.on_model_crop_change)
+
+
+    def register_appmodel(self, model: AppState) -> None:
+        model.observe(
+            match_items_atttributes_to_kwargs(self.update, 'owner', frames='selected_frames'),
+            names=['selected_frames', 'x0', 'x1', 'x_max', 'y0', 'y1', 'y_max'],
+        )
     
+        def on_run_button_click() -> None:
+            workflow = model.extract_frames(
+                n_clusters=self.n_clusters_widget.value, 
+                every_n=self.every_n_widget.value,
+                downsample_level=self.downsample_widget.value,
+            )
+            for step in workflow:
+                self.progress_bar.max = step.max
+                self.progress_bar.value = step.value
+                self.progress_bar.label = step.description
+        self.run_button.clicked.connect(on_run_button_click)
+
+
     def register_napari(self, viewer: napari.Viewer) -> None:
         self.viewer = viewer
         viewer.window.add_dock_widget(self.widget, name='')
-
-    # Run Button
-    def on_run_button_click(self) -> None:
-        workflow = self.model.extract_frames(
-            n_clusters=self.n_clusters_widget.value, 
-            every_n=self.every_n_widget.value,
-            downsample_level=self.downsample_widget.value,
-        )
-        for step in workflow:
-            self.progress_bar.max = step.max
-            self.progress_bar.value = step.value
-            self.progress_bar.label = step.description
         
     
     # Image Viewer
-    def on_model_selected_frames_change(self, change) -> None:
+    def update(self, frames: Optional[np.ndarray]) -> None:
         if self.layer not in self.viewer.layers:
             self.viewer.add_layer(self.layer)
 
-        frames = self.model.get_cropped_selected_frames()
-        self.export_frames_fileselector.visible = False if frames is None else True
+        if frames is None:
+            self.export_frames_fileselector.visible = False
+            return
+
+        self.export_frames_fileselector.visible = True
         self.layer.data = frames
-
-
-    def on_model_crop_change(self, change) -> None:
-        frames = self.model.get_cropped_selected_frames()
-        if frames is not None:
-            self.layer.data = frames
 
 
     def on_export_frames_button_change(self, directory: Path):
