@@ -17,13 +17,14 @@ class PrintToProgressBar:
         Example
         -------
         
-        >>> kmeans =  MiniBatchKMeans(verbose=1)
-        ... with PrintToProgressBar(
-        ...     start_filter=lambda s: "Minibatch" in s,  # start pbar when Minibatch is printed
-        ...     to_find_fun=lambda s: int(s[s.index("/")+1 : s.index(": mean")]),  # Find total in "/243: mean"
-        ...     end_filter=lambda s: "Converged" in s,  # stop pbar with "Converged" is printed
-        ... ):
-        ...     kmeans.fit(data)
+        # >>> from sklearn.cluster import MiniBatchKMean
+        # >>> kmeans =  MiniBatchKMeans(verbose=1)
+        # >>> with PrintToProgressBar(
+        # ...     start_filter=lambda s: "Minibatch" in s,  # start pbar when Minibatch is printed
+        # ...     to_find_fun=lambda s: int(s[s.index("/")+1 : s.index(": mean")]),  # Find total in "/243: mean"
+        # ...     end_filter=lambda s: "Converged" in s,  # stop pbar with "Converged" is printed
+        # ... ):
+        # ...     kmeans.fit(data)
         """
         self.start_filter = start_filter
         self.to_find_fun = to_find_fun

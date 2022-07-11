@@ -21,7 +21,7 @@ class AppState(HasTraits, PrintableTraits):
     reference_frame = Instance(np.ndarray, allow_none=True)
     reference_frame_cropped = Instance(np.ndarray, allow_none=True)
     crop = CropState()
-    selected_frame_indices = List(traits=Int())
+    selected_frame_indices = List(Int())
     selected_frames = Instance(np.ndarray, allow_none=True)
     body_parts = List(Unicode(), default_value=[])
     current_body_part = Unicode(allow_none=True)
@@ -69,7 +69,7 @@ class AppState(HasTraits, PrintableTraits):
                 yield step
             else:
                 assert isinstance(step, ExtractFramesResult)
-                self.selected_frame_indices = step.extracted_frame_indices
+                self.selected_frame_indices = [int(ind) for ind in step.extracted_frame_indices]
                 self.selected_frames = step.extracted_frames
 
 
